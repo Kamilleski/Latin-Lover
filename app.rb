@@ -5,9 +5,30 @@ require 'sinatra/base'
 require 'net/http'
 require 'uri'
 require 'nokogiri'
+require 'pg'
 
-configure :development, :test do
-  require 'pry'
+configure :development do
+  set :db_config, { dbname: "restaurants" }
+end
+
+configure :production do
+  uri = URI.parse(ENV["DATABASE_URL"])
+  set :db_config, {
+    host: uri.host,
+    port: uri.port,
+    dbname: uri.path.delete('/'),
+    user: uri.user,
+    password: uri.password
+  }
+end
+
+def db_connection
+  begin
+    connection = PG.connect(settings.db_config)
+    yield(connection)
+  ensure
+    connection.close
+  end
 end
 
 configure do
@@ -34,10 +55,9 @@ post '/english' do
   @french_word = get_translation(@word, 'fr', systran_key)
   @spanish_word = get_translation(@word, 'es', systran_key)
   @italian_word = get_translation(@word, 'it', systran_key)
-  @latin_word = get_translation(@word, 'la', systran_key)
+  @portuguese_word = get_translation(@word, 'pt', systran_key)
 
   @etymology = get_english_etymology(@word, mer_web_key)
-  binding.pry
 
   erb :'show'
 end
@@ -51,7 +71,6 @@ def get_translation(word, language_code, key)
   parsed_data = JSON.parse(response)
 
   parsed_data["outputs"].first["output"]
-  ##use parsed data
 end
 
 def get_english_etymology(word, key)
@@ -59,10 +78,7 @@ def get_english_etymology(word, key)
   uri = URI(url)
   response = Net::HTTP.get(uri)
 
-
-  @etymologies = []
   xml_doc = Nokogiri::XML(response)
-  # xml_doc.children.first.children[1].children[6]
   @etymology = xml_doc.search('//et')
   @etymology
 end
