@@ -47,6 +47,7 @@ mer_web_key = "70bd7572-cdf0-4092-b17b-d20aca32e59f"
 
 
 get '/' do
+  
   erb :'index'
 end
 
